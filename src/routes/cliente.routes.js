@@ -6,8 +6,9 @@ const api = express.Router();
 
 api.post('/IniciarSesion', controladorAdmin.login);
 
-api.post('/registar', controladorCliente.Registar);
+api.post('/registar', controladorCliente.AgregarUsuario);
 api.put('/editarUsuario/:idUsuario',md_autenticacion.Auth, controladorCliente.editarUsuario);
 api.delete('/eliminarCuenta/:idUsuario',md_autenticacion.Auth, controladorCliente.eliminarCuenta);
+api.get('buscarProductoXNombre/:nombre', controladorCliente.buscarProducto)
 
 module.exports = api;

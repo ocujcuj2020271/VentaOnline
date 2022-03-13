@@ -3,6 +3,7 @@ const Categoria = require('../models/categorias.model');
 const Producto = require('../models/productos.model');
 const bcrypt = require('bcrypt-nodejs');
 const jwt = require('../services/jwt');
+const ModeloCategoria = require('../models/categorias.model')
 
 const app = require('express')();
 
@@ -26,8 +27,6 @@ function login(req, res) {
         }
     })
 }
-
-//---------------------------USUARIO-------------------------------------
 
 function RegistrarAdmin(req, res) {
     var usuarioModel = new Usuario();
@@ -54,6 +53,7 @@ function RegistrarAdmin(req, res) {
     })
 
 }
+//---------------------------USUARIO-------------------------------------
 
 
 function AgregarUsuario(req, res) {
@@ -121,7 +121,7 @@ function editarUsuariosCliente(req, res) {
     })
 }
 
-function eliminarUsuarioCliente(req, res){
+function eliminarUsuarioCliente(req, res) {
     var id = req.params.idUsuario;
 
     Usuario.findOne({ _id: id, rol: 'Cliente' }, (err, usuarioEncontrado) => {
@@ -130,20 +130,44 @@ function eliminarUsuarioCliente(req, res){
             return res.status(500).send({ mensaje: 'No puedes Eliminar un Usuario que no sea cliente' })
         }
 
-        Usuario.findByIdAndDelete(id, (err, clienteEliminado)=>{
+        Usuario.findByIdAndDelete(id, (err, clienteEliminado) => {
             if (err) return res.status(500).send({ mensaje: 'Error en la peticion' })
             if (!clienteEliminado) return res.status(500).send({ mensaje: 'Error al eliminar el cliente' })
 
-            return res.status(200).send({Cliente: 'Se elimino:',clienteEliminado})
+            return res.status(200).send({ Cliente: 'Se elimino:', clienteEliminado })
         })
-    
-    
+
+
     })
 
 }
 
 
 //-------------------------CATEGORIAS---------------------------------
+
+function CategoriaDefault(req, res) {
+    var categoriaModel = Categoria();
+
+    categoriaModel.nombre = "Por Defecto"
+
+    Categoria.find({ nombre: "Por Defecto" }, (err, categoria) => {
+        if (err) return console.log({ mensaje: 'Error en la peticion' });
+        if (categoria.length >= 1) {
+            return console.log({ mensaje: 'La categoria Fue creada' })
+        } else {
+            categoriaModel.save((err, guardar) => {
+                if (err) return console.log({ mensaje: 'Error en la peticion' });
+                if (guardar) {
+                    console.log("Categoria Lista");
+                } else {
+                    console.log({ mensaje: "la categoria no se a creado" });
+                }
+
+            })
+        }
+
+    })
+}
 
 function AgregarCategoria(req, res) {
     var parametros = req.body;
@@ -160,11 +184,12 @@ function AgregarCategoria(req, res) {
     }
 }
 
+
 function AgregarCategoriasProducto(req, res) {
     var producto = req.params.idProducto;
     var categorias = req.params.idCategoria;
 
-    Producto.findByIdAndUpdate(producto, { $push: { Categoria: { idCategoria: categorias } } }, { new: true },
+    Producto.findByIdAndUpdate(producto, { idCategoria: categorias }, { new: true },
         (err, categoriaAgregada) => {
             if (err) return res.status(500).send({ mensaje: 'Error en  la peticion' });
             if (!categoriaAgregada) return res.status(500).send({ mensaje: 'Error al agregar el categoria' });
@@ -172,6 +197,7 @@ function AgregarCategoriasProducto(req, res) {
             return res.status(200).send({ product: categoriaAgregada });
         })
 }
+
 
 function verCategorias(req, res) {
     Categoria.find({}, (err, categoria) => {
@@ -182,7 +208,31 @@ function verCategorias(req, res) {
     })
 }
 
-//------------s------------
+function eliminarCategoria(req, res) {
+    var id = req.params.idCategoria
+    
+    Categoria.find({nombre: {$regex: "Por Defecto", $options: "i"}},(err, defecto) => {
+        if(defecto.id !== id){
+            Categoria.findByIdAndDelete({_id: id}, (err, eliminar)=>{
+                if(err) return res.status(500).send({ mensaje: 'Error en la peticion' });
+                if(!eliminar) return res.status(500).send({mensaje: 'Error al Eliminar 1'});
+                {
+                    Producto.updateMany({idCategoria: id}, {idCategoria: defecto.id},{new: true},(err, actualizar)=>{
+                        return res.status(200).send({mensaje: eliminar});
+                    } )
+                }
+            })
+        } else{
+            return res.status(500).send({mensaje: "No puedes eliminar la categoria por defecto"});
+        }
+    })
+  
+
+
+
+}
+
+/*
 function eliminarCategoriasProducto(req, res) {
 
 }
@@ -229,7 +279,7 @@ function EliminarCategorias(req, res) {
     })
 }
 
-// -----------s---------------
+*/
 
 function EditarCategorias(req, res) {
     var Id = req.params.idCategoria;
@@ -244,26 +294,47 @@ function EditarCategorias(req, res) {
 
 }
 
+function obtenerProductosCategoria(req, res) {
+    var Id = req.params.idCategoria;
+
+    Producto.find({ idCategoria: Id }, (err, categorias) => {
+        if (err) return res.status(500).send({ mensaje: 'Error en la peticion' });
+        if (!categorias) return res.status(404).send({ mensaje: 'Error al Editar la categoria' });
+
+        return res.status(200).send({ categoria: categorias })
+    })
+}
+
 // --------------------------PRODUCTOS----------------------------------
 
 function AgregarProducto(req, res) {
     const parametros = req.body;
     const modeloProducto = new Producto();
 
-    if (parametros.nombre) {
-        modeloProducto.nombre = parametros.nombre;
-        modeloProducto.cantidad = parametros.cantidad;
-        modeloProducto.precio = parametros.precio;
+    Producto.find({ nombre: parametros.nombre }, (err, productoEncontrado) => {
+        if (productoEncontrado.length > 0) {
+            return res.status(500).send({ mensaje: 'Ya existe un producto con este Nombre, modifica la cantidad' })
+        } else {
 
-        modeloProducto.save((err, productoGuardar) => {
-            if (err) return res.status(400).send({ mensaje: 'Error en la peticion.' });
-            if (!productoGuardar) return res.status(400).send({ mensaje: 'Error al agregar el Producto.' });
+            if (parametros.nombre) {
+                modeloProducto.nombre = parametros.nombre;
+                modeloProducto.cantidad = parametros.cantidad;
+                modeloProducto.precio = parametros.precio;
 
-            return res.status(200).send({ productos: productoGuardar });
-        })
-    } else {
-        return res.status(400).send({ mensaje: 'Debe de ingresar a que categoria pertenece' });
-    }
+                modeloProducto.save((err, productoGuardar) => {
+                    if (err) return res.status(400).send({ mensaje: 'Error en la peticion.' });
+                    if (!productoGuardar) return res.status(400).send({ mensaje: 'Error al agregar el Producto.' });
+
+                    return res.status(200).send({ productos: productoGuardar });
+                })
+            } else {
+                return res.status(400).send({ mensaje: 'Debe de ingresar parametros obligatorios' });
+            }
+
+        }
+    })
+
+
 
 }
 
@@ -287,8 +358,8 @@ function EditarProducto(req, res) {
 
 function eliminarProducto(req, res) {
     var id = req.params.idProducto;
-    
-    Producto.findByIdAndDelete(id, (err, eliminado)=>{
+
+    Producto.findByIdAndDelete(id, (err, eliminado) => {
         if (err) return res.status(500).send({ mensaje: 'Error en la peticion' });
         if (!eliminado) return res.status(500).send({ mensaje: 'Error al eliminar el Producto' });
 
@@ -310,12 +381,20 @@ function stockProducto(req, res) {
         })
 }
 
-function ProductosVendidos(req, res) {
-    await.modeloProducto.find({cantidad: 0})
-        .then(doc => res.json(doc))
-        .catch(err => console.error(err));
-}
+function obtenerProductoAgotado(req, res) {
+    Producto.find({ cantidad: 0 }).exec(
+        (err, producto) => {
+            if (err) {
+                return res.status(500).send({ mensaje: 'Error en la peticion' })
+            } else {
+                if (!producto) return res.status(500).send({ mensaje: 'no hay productos existentes' })
 
+                return res.status(200).send({ producto });
+            }
+        }
+    )
+
+}
 
 
 
@@ -324,9 +403,10 @@ module.exports = {
     login,
     AgregarCategoria,
     verCategorias,
-    EliminarCategorias,
+    eliminarCategoria,
     EditarCategorias,
     AgregarProducto,
+    obtenerProductoAgotado,
     VerProductos,
     EditarProducto,
     stockProducto,
@@ -335,5 +415,8 @@ module.exports = {
     editarRol,
     editarUsuariosCliente,
     eliminarUsuarioCliente,
-    eliminarProducto
+    eliminarProducto,
+    obtenerProductosCategoria,
+    CategoriaDefault,
+
 }
