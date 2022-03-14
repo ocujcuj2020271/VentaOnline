@@ -4,7 +4,6 @@ const bcrypt = require('bcrypt-nodejs');
 const jwt = require('../services/jwt');
 const app = require('express')();
 
-//esto funcionaba pero al grabar el video dejo de hacerlo :c
 function AgregarUsuario(req, res) {
     var parametros = req.body;
     var modeloUsuario = new Usuario();
